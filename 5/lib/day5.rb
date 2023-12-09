@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 require 'pry-byebug'
 input = File.read(File.join(__dir__, './input.txt'))
 
@@ -57,26 +58,50 @@ def solve1(input)
 end
 
 def range_intersection(source, destination)
-  if destination.cover?(source.min)
-    min = source.min
-  elsif source.cover?(destination.min)
-    min = destination.min
-  else
-    min = nil
-  end
-  if destination.cover?(source.max)
-    max = source.max
-  elsif source.cover?(destination.max)
-    max = destination.max
-  else
-    max = nil
-  end
-  # intersection = source.to_a & destination.to_a
-  # return nil if intersection.empty?
+  min = if destination.cover?(source.min)
+          source.min
+        elsif source.cover?(destination.min)
+          destination.min
+        end
+  max = if destination.cover?(source.max)
+          source.max
+        elsif source.cover?(destination.max)
+          destination.max
+        end
   return nil if min.nil? || max.nil?
 
   min...(max + 1)
-  # intersection.min...(intersection.max + 1)
+end
+
+def remove_ranges(original_range, ranges_to_remove)
+  result = [original_range]
+
+  # if the range to remove is completely inside of the original range, get the right and left parts
+  ranges_to_remove.each do |range_to_remove|
+    partial_result = []
+    result.each do |result_range|
+      unless result_range.cover?(range_to_remove.min) || result_range.cover?(range_to_remove.max)
+        partial_result << result_range
+        next
+      end
+      left_result = range_to_remove.min <= result_range.min ? nil : (result_range.min)...(range_to_remove.min)
+      right_result = range_to_remove.max >= result_range.max ? nil : (range_to_remove.end)...result_range.end
+      partial_result.push(left_result, right_result).compact!
+    end
+    result = partial_result
+  end
+  result
+end
+
+def merge_ranges(original_key, original_value, modified_locations)
+  modified_locations.map(&:keys).flatten
+  modified_ranges = modified_locations.map(&:keys).flatten.sort_by(&:first)
+  original_ranges = remove_ranges(original_key, modified_ranges)
+  original_ranges.each do |range|
+    modified_locations << { range => original_value }
+    modified_locations
+  end
+  modified_locations.inject(&:merge)
 end
 
 def find_locations_in_range(loc_key, loc_value, instruction)
@@ -105,19 +130,15 @@ def find_locations_in_range(loc_key, loc_value, instruction)
     # Update the intersection with the instruction value
     locations[inter_start...inter_end] = (intersection.begin + inst_offset)...(intersection.end + inst_offset)
 
-    # # Update the left split with its original value
-    # locations[loc_key.begin...inter_start] = (loc_value.begin)...(loc_value.begin + left_split_count) unless left_split_count.zero?
-
-    # # Update the right split with its original value
-    # locations[inter_end...loc_key.end] = (loc_value.end - right_split_count)...(loc_value.end) unless right_split_count.zero?
-
     all_locations << locations
   end
   # If no intersection, return the original value
   if all_locations.empty?
     { loc_key => loc_value }
+  elsif all_locations.first.keys == [loc_key]
+    all_locations.first
   else
-    all_locations.inject(:merge)
+    merge_ranges(loc_key, loc_value, all_locations)
   end
 end
 
@@ -129,7 +150,7 @@ def seed_locations(seed, map)
       new = find_locations_in_range(loc_key, loc_value, map[instruction])
       new_locations << new
     end
-    p locations = new_locations.inject(:merge)
+    locations = new_locations.inject(:merge)
   end
   locations
 end
@@ -143,9 +164,10 @@ def solve2(input)
 
     num...(num + seeds[i + 1])
   end.compact
-  seed = seeds_ranges.first
-  seed_locations({ seed => seed }, map).min_by { |_, v| v.begin }
+  seeds_ranges.map do |seed|
+    seed_locations({ seed => seed }, map).min_by { |_, v| v.begin }.last.min
+  end.min
 end
 
 # p solve1(input) # 525792406
-# p solve2(input) # 97868205 (too high) / 396120981 (too high)
+# p solve2(input) # 79004094

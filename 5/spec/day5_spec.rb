@@ -53,13 +53,31 @@ describe '#find_seed_location' do
 end
 
 describe '#solve1' do
-  it 'runs' do
+  it 'should return the correct result' do
     expect(solve1(example)).to eq 35
   end
 end
 
+describe 'remove_ranges' do
+  it 'should return the correct value when the values are covered by the range' do
+    expect(remove_ranges(1...10, [2...4, 7...9])).to eq [1...2, 4...7, 9...10]
+  end
+
+  it 'should return the correct value when the values are not covered by the range' do
+    expect(remove_ranges(1...10, [0...1, 15...20])).to eq [1...10]
+  end
+
+  it 'should return the correct value when the values are partially covered by the range' do
+    expect(remove_ranges(1...10, [0...4, 7...20])).to eq [4...7]
+  end
+
+  it 'should return the correct value when the values completely covered the range' do
+    expect(remove_ranges(1...10, [0...4, 4...7, 7...20])).to eq []
+  end
+end
+
 describe '#solve2' do
-  it 'runs' do
-    p solve2(example)
+  it 'should return the correct result' do
+    expect(solve2(example)).to eq 46
   end
 end
